@@ -1,147 +1,236 @@
-/* 효과: 조각 맞춤 반짝임, 완성 축하(그림 속 별 반짝임 · 빛줄기 · 별 꽃가루 · 불꽃). 게임 캔버스 위의 별도 캔버스에 그린다. */
-'use strict';
-(function (SN) {
-  const COLORS = ['#ffd84a', '#fff3b0', '#ffe98a', '#7ec8ff', '#3a6df0', '#ffffff', '#ffb3d9', '#9ff0c9'];
-  let cv = null, g = null, dpr = 1, raf = 0;
-  let parts = [];
-  let cele = null; // 축하 상태
+/*
+ * 시각 효과 — 입자(반짝임·불꽃·소용돌이·색종이)와 완성 후 그림 속 별 반짝임.
+ * 입자는 「세계 좌표(그림 위)」와 「화면 좌표(색종이)」 두 공간을 가진다.
+ */
+(function () {
+  'use strict';
+  const SNP = (window.SNP = window.SNP || {});
+  const U = SNP.util;
 
-  function resize() {
-    if (!cv) return;
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = Math.round(cv.clientWidth * dpr);
-    cv.height = Math.round(cv.clientHeight * dpr);
-  }
+  const STAR_COLORS = ['#fff6c2', '#ffe066', '#ffd23f', '#ffffff', '#bfe3ff', '#8fc1ff'];
+  const CONFETTI = ['#ffd23f', '#fff1a8', '#5aa2ff', '#2456d6', '#ffffff', '#ff9f43', '#7be0c3'];
 
-  function starPath(ctx, r, spikes = 5, inner = 0.45) {
-    ctx.beginPath();
-    for (let i = 0; i < spikes * 2; i++) {
-      const rr = i % 2 ? r * inner : r, a = (i * Math.PI) / spikes - Math.PI / 2;
-      i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  class Fx {
+    constructor() {
+      this.parts = [];
+      this.timers = [];
+      this.twinkle = null;     // { lights, t }
+      this.reduced = U.prefersReducedMotion();
     }
-    ctx.closePath();
-  }
 
-  function loop(ts) {
-    raf = 0;
-    const W = cv.width / dpr, H = cv.height / dpr;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, W, H);
-    const now = performance.now();
-    // 축하: 빛줄기·그림 속 별
-    if (cele) {
-      const t = (now - cele.t0) / 1000;
-      drawCelebration(t, W, H);
-      if (!SN.env.reducedMotion && t < cele.fireworksFor && now - cele.lastBurst > cele.burstEvery) {
-        cele.lastBurst = now;
-        burst(W * (0.12 + Math.random() * 0.76), H * (0.1 + Math.random() * 0.4), 46);
+    active() { return this.parts.length > 0 || this.timers.length > 0 || !!this.twinkle; }
+
+    clear() { this.parts = []; this.timers = []; this.twinkle = null; }
+
+    /** 조각을 맞췄을 때: 작은 별 가루 + 둥근 빛 고리 */
+    sparkle(x, y, size) {
+      const n = this.reduced ? 6 : 16;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+        const v = size * (0.9 + Math.random() * 1.4);
+        this.parts.push({
+          sp: 'w', kind: Math.random() < 0.45 ? 'star' : 'dot', x, y,
+          vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0, drag: 2.6,
+          life: 0, max: 0.55 + Math.random() * 0.35, size: size * (0.05 + Math.random() * 0.06),
+          color: STAR_COLORS[(Math.random() * STAR_COLORS.length) | 0], rot: Math.random() * 6, vr: 3,
+        });
       }
-      if (t < 2.6 && Math.random() < (SN.env.reducedMotion ? 0.15 : 0.9)) confetti(W, 3);
+      this.parts.push({ sp: 'w', kind: 'ring', x, y, life: 0, max: 0.5, size: size * 0.9, color: '#fff3b0' });
     }
-    // 입자
-    const dt = 1 / 60;
-    parts = parts.filter((p) => (p.life -= dt) > 0);
-    for (const p of parts) {
-      p.vx *= p.drag; p.vy = p.vy * p.drag + p.grav * dt;
-      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
-      const a = Math.min(1, p.life / p.fade);
-      g.save();
-      g.globalAlpha = a;
-      g.translate(p.x, p.y); g.rotate(p.rot);
-      g.fillStyle = p.color;
-      if (p.kind === 'star') { starPath(g, p.size); g.fill(); }
-      else if (p.kind === 'rect') { g.scale(1, Math.abs(Math.cos(p.rot * 2.3))); g.fillRect(-p.size, -p.size * 0.5, p.size * 2, p.size); }
-      else { g.globalCompositeOperation = 'lighter'; g.beginPath(); g.arc(0, 0, p.size, 0, Math.PI * 2); g.fill(); }
-      g.restore();
-    }
-    if (parts.length || cele) raf = requestAnimationFrame(loop);
-  }
-  const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
 
-  function burst(x, y, n) {
-    const hue = COLORS[Math.floor(Math.random() * COLORS.length)];
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + Math.random() * 0.2, sp = 140 + Math.random() * 160;
-      parts.push({ kind: 'dot', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 120, drag: 0.965, size: 1.6 + Math.random() * 1.6, rot: 0, spin: 0, life: 1.1 + Math.random() * 0.5, fade: 0.6, color: Math.random() < 0.3 ? '#fff' : hue });
-    }
-  }
-  function confetti(W, n) {
-    for (let i = 0; i < n; i++) {
-      parts.push({
-        kind: Math.random() < 0.55 ? 'star' : 'rect', x: Math.random() * W, y: -12,
-        vx: (Math.random() - 0.5) * 60, vy: 60 + Math.random() * 90, grav: 60, drag: 0.995,
-        size: 4 + Math.random() * 5, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 8,
-        life: 4 + Math.random() * 2, fade: 1, color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    /** 찬스로 날아가는 조각 뒤에 남는 꼬리별 */
+    trail(x, y, size) {
+      if (this.reduced && Math.random() < 0.6) return;
+      this.parts.push({
+        sp: 'w', kind: 'star', x: x + (Math.random() - 0.5) * size * 0.3, y: y + (Math.random() - 0.5) * size * 0.3,
+        vx: 0, vy: 0, g: 0, drag: 0, life: 0, max: 0.6, size: size * (0.05 + Math.random() * 0.05),
+        color: STAR_COLORS[(Math.random() * 3) | 0], rot: Math.random() * 6, vr: 4,
       });
     }
-  }
 
-  function drawCelebration(t, W, H) {
-    const c = cele;
-    const r = c.getRect(); // 화면상의 그림 사각형 (카메라가 바뀌어도 따라감)
-    // 1) 그림 위를 지나가는 빛줄기 (팔레트 모양으로 잘라서)
-    const sweep = (t % 3.2) / 1.6; // 0~2 : 앞 1.6초 동안 지나감
-    if (sweep <= 1 && r.w > 4) {
-      const sw = Math.ceil(r.w), sh = Math.ceil(r.h);
-      if (!c.sheen || c.sheen.width !== sw || c.sheen.height !== sh) c.sheen = SN.canvas(sw, sh);
-      const sg = c.sheen.getContext('2d');
-      sg.globalCompositeOperation = 'source-over';
-      sg.clearRect(0, 0, sw, sh);
-      sg.drawImage(c.img, 0, 0, sw, sh);
-      sg.globalCompositeOperation = 'source-in';
-      const x = SN.lerp(-0.4, 1.4, SN.easeInOutCubic(sweep)) * sw;
-      const grad = sg.createLinearGradient(x - sw * 0.18, 0, x + sw * 0.18, sh * 0.3);
-      grad.addColorStop(0, 'rgba(255,255,255,0)'); grad.addColorStop(0.5, 'rgba(255,250,215,0.55)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
-      sg.fillStyle = grad; sg.fillRect(0, 0, sw, sh);
-      g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(c.sheen, r.x, r.y, r.w, r.h); g.restore();
-    }
-    // 2) 그림 속 별과 달이 차례로 반짝반짝
-    const unit = r.w / 1000;
-    c.stars.forEach((s, i) => {
-      const local = t - i * 0.18;
-      if (local < 0) return;
-      const pop = Math.min(1, local / 0.5);
-      const pulse = 0.75 + 0.25 * Math.sin(local * 3.2 + i);
-      const x = r.x + s[0] * r.w, y = r.y + s[1] * r.h, R = s[2] * unit * (0.8 + 0.4 * SN.easeOutBack(pop)) * pulse;
-      g.save();
-      g.globalCompositeOperation = 'lighter';
-      const rg = g.createRadialGradient(x, y, 0, x, y, R * 2.4);
-      rg.addColorStop(0, 'rgba(255,250,210,0.85)'); rg.addColorStop(0.35, 'rgba(255,225,120,0.35)'); rg.addColorStop(1, 'rgba(255,220,120,0)');
-      g.fillStyle = rg; g.beginPath(); g.arc(x, y, R * 2.4, 0, Math.PI * 2); g.fill();
-      // 빛살
-      g.translate(x, y); g.rotate(local * 0.6 + i);
-      g.fillStyle = 'rgba(255,245,200,0.55)';
-      for (let k = 0; k < 4; k++) {
-        g.rotate(Math.PI / 4);
-        g.beginPath(); g.moveTo(0, -R * 3.2 * pulse); g.lineTo(R * 0.12, 0); g.lineTo(0, R * 3.2 * pulse); g.lineTo(-R * 0.12, 0); g.closePath(); g.fill();
-      }
-      g.restore();
-      if (local > 0.2 && Math.random() < 0.06) SN.fx.sparkle(x + (Math.random() - 0.5) * R * 2, y + (Math.random() - 0.5) * R * 2, 2);
-    });
-  }
-
-  SN.fx = {
-    init(canvas) {
-      cv = canvas; g = cv.getContext('2d');
-      resize(); window.addEventListener('resize', () => { resize(); kick(); });
-    },
-    resize,
-    // 조각이 제자리에 들어갔을 때
-    sparkle(x, y, n = 14, big = false) {
-      if (!cv) return;
+    burst(x, y, size, n) {
+      n = this.reduced ? Math.ceil(n / 4) : n;
       for (let i = 0; i < n; i++) {
-        const a = Math.random() * Math.PI * 2, sp = (big ? 120 : 60) + Math.random() * (big ? 160 : 90);
-        parts.push({ kind: Math.random() < 0.5 ? 'star' : 'dot', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, grav: 90, drag: 0.94, size: 2 + Math.random() * (big ? 5 : 3.5), rot: Math.random() * 6, spin: (Math.random() - 0.5) * 10, life: 0.6 + Math.random() * 0.5, fade: 0.4, color: COLORS[Math.floor(Math.random() * 3)] });
+        const a = Math.random() * Math.PI * 2;
+        const v = size * (0.6 + Math.random() * 2.2);
+        this.parts.push({
+          sp: 'w', kind: Math.random() < 0.35 ? 'star' : 'dot', x, y,
+          vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: size * 0.9, drag: 1.4,
+          life: 0, max: 1 + Math.random() * 0.9, size: size * (0.03 + Math.random() * 0.05),
+          color: STAR_COLORS[(Math.random() * STAR_COLORS.length) | 0], rot: Math.random() * 6, vr: 2,
+        });
       }
-      kick();
-    },
-    // 완성 축하 시작. getRect(): 화면상의 그림 사각형, stars: [[x비율, y비율, 반지름(그림폭 1000 기준)]...]
-    celebrate({ getRect, img, stars }) {
-      if (!cv) return;
-      cele = { t0: performance.now(), getRect, img, stars, lastBurst: 0, burstEvery: 380, fireworksFor: 4.2, sheen: null };
-      kick();
-    },
-    stop() { cele = null; parts = []; if (g) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); } },
-    get active() { return !!cele; },
-  };
-})(window.SN);
+      this.parts.push({ sp: 'w', kind: 'ring', x, y, life: 0, max: 0.7, size: size * 1.6, color: '#fff7cf' });
+    }
+
+    /** 달 주위를 감도는 고흐풍 소용돌이 */
+    swirl(cx, cy, radius) {
+      const n = this.reduced ? 20 : 90;
+      for (let i = 0; i < n; i++) {
+        this.parts.push({
+          sp: 'w', kind: 'swirl', cx, cy, a: (i / n) * Math.PI * 6, r: radius * (0.15 + (i / n) * 0.2),
+          vr: radius * (0.35 + Math.random() * 0.25), va: 2.4 + Math.random() * 0.8,
+          life: -i * 0.012, max: 2.4, size: radius * (0.02 + Math.random() * 0.025),
+          color: STAR_COLORS[(Math.random() * STAR_COLORS.length) | 0],
+        });
+      }
+    }
+
+    confetti(vw, vh) {
+      if (this.reduced) return;
+      const n = Math.round(U.clamp((vw * vh) / 9000, 60, 180));
+      for (let i = 0; i < n; i++) {
+        this.parts.push({
+          sp: 's', kind: 'confetti', x: Math.random() * vw, y: -20 - Math.random() * vh * 0.6,
+          vx: (Math.random() - 0.5) * 60, vy: 90 + Math.random() * 120, g: 40, drag: 0.4,
+          life: 0, max: 5 + Math.random() * 2, size: 6 + Math.random() * 7,
+          color: CONFETTI[(Math.random() * CONFETTI.length) | 0], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 10,
+          sway: Math.random() * 6, swayA: 30 + Math.random() * 40,
+        });
+      }
+    }
+
+    /** 완성 축하: 그림 속 별에서 차례로 불꽃 + 달 소용돌이 + 색종이 */
+    celebrate(lights, W, vw, vh) {
+      const size = W * 0.05;
+      const order = lights.slice().sort(() => Math.random() - 0.5);
+      const shots = this.reduced ? 3 : Math.min(order.length, 12);
+      for (let i = 0; i < shots; i++) {
+        const L = order[i];
+        this.timers.push({ at: 0.15 + i * 0.28, fn: () => this.burst(L[0], L[1], size * U.clamp(L[2] / 60, 0.6, 1.4), 34) });
+      }
+      const moon = lights[0];
+      if (moon) this.timers.push({ at: 0.4, fn: () => this.swirl(moon[0], moon[1], moon[2] * 3.2) });
+      this.timers.push({ at: 0.05, fn: () => this.confetti(vw, vh) });
+      this.twinkle = { lights, t: 0 };
+    }
+
+    update(dt) {
+      if (this.twinkle) this.twinkle.t += dt;
+      for (let i = this.timers.length - 1; i >= 0; i--) {
+        const tm = this.timers[i];
+        tm.at -= dt;
+        if (tm.at <= 0) { this.timers.splice(i, 1); tm.fn(); }
+      }
+      const out = [];
+      for (const p of this.parts) {
+        p.life += dt;
+        if (p.life < 0) { out.push(p); continue; }
+        if (p.life > p.max) continue;
+        if (p.kind === 'swirl') {
+          p.a += p.va * dt;
+          p.r += p.vr * dt;
+        } else if (p.kind !== 'ring') {
+          const k = Math.max(0, 1 - p.drag * dt);
+          p.vx *= k; p.vy = p.vy * k + p.g * dt;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          if (p.vr) p.rot += p.vr * dt;
+          if (p.kind === 'confetti') p.x += Math.sin(p.life * 3 + p.sway) * p.swayA * dt;
+        }
+        out.push(p);
+      }
+      this.parts = out;
+    }
+
+    /** 세계 좌표 효과(그림 위). ctx 는 이미 세계 변환이 걸린 상태 */
+    drawWorld(ctx) {
+      if (this.twinkle) this.drawTwinkle(ctx);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of this.parts) {
+        if (p.sp !== 'w' || p.life < 0) continue;
+        const k = p.life / p.max;
+        const a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+        ctx.globalAlpha = U.clamp(a, 0, 1);
+        if (p.kind === 'ring') {
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = p.size * 0.08 * (1 - k);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (0.3 + k * 0.9), 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (p.kind === 'swirl') {
+          const x = p.cx + Math.cos(p.a) * p.r, y = p.cy + Math.sin(p.a) * p.r * 0.8;
+          dot(ctx, x, y, p.size, p.color);
+        } else if (p.kind === 'star') {
+          star(ctx, p.x, p.y, p.size * 1.6, p.rot, p.color);
+        } else {
+          dot(ctx, p.x, p.y, p.size, p.color);
+        }
+      }
+      ctx.restore();
+    }
+
+    /** 화면 좌표 효과(색종이). ctx 는 CSS 픽셀 단위 변환 상태 */
+    drawScreen(ctx) {
+      for (const p of this.parts) {
+        if (p.sp !== 's' || p.life < 0) continue;
+        const k = p.life / p.max;
+        ctx.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.scale(1, Math.abs(Math.cos(p.rot * 1.3)) * 0.8 + 0.2);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    drawTwinkle(ctx) {
+      const t = this.twinkle.t;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const fadeIn = U.clamp(t / 1.2, 0, 1);
+      this.twinkle.lights.forEach((L, i) => {
+        const [x, y, r] = L;
+        const ph = i * 1.7;
+        const a = fadeIn * (0.28 + 0.22 * Math.sin(t * 2.2 + ph));
+        const R = r * (1.5 + 0.25 * Math.sin(t * 1.4 + ph));
+        const g = ctx.createRadialGradient(x, y, 0, x, y, R);
+        g.addColorStop(0, `rgba(255,248,200,${a})`);
+        g.addColorStop(0.45, `rgba(255,226,120,${a * 0.45})`);
+        g.addColorStop(1, 'rgba(255,220,120,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, R, 0, Math.PI * 2);
+        ctx.fill();
+        if (r > 25) {
+          // 큰 별은 십자 빛살
+          ctx.globalAlpha = fadeIn * (0.35 + 0.3 * Math.sin(t * 3 + ph));
+          star(ctx, x, y, R * 1.25, 0.2 * Math.sin(t * 0.7 + ph), '#fffbe0', 0.07);
+          ctx.globalAlpha = 1;
+        }
+      });
+      ctx.restore();
+    }
+  }
+
+  function dot(ctx, x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** 네 갈래 반짝별 */
+  function star(ctx, x, y, r, rot, color, thin) {
+    const k = thin || 0.22;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot || 0);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const rr = i % 2 === 0 ? r : r * k;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  SNP.Fx = Fx;
+  SNP.fxShapes = { star, dot };
+})();
