@@ -1,149 +1,96 @@
-/* 공용 도우미: 난수, 수학, 저장소, 캔버스, 데이터 디코딩 */
-(function () {
-  'use strict';
-  const SNP = (window.SNP = window.SNP || {});
+/* 별이 빛나는 밤 퍼즐 — 공통 유틸리티
+ * 모든 스크립트는 빌드 도구 없이 file:// 에서도 돌도록 고전 스크립트 + 전역 이름공간(window.SN)을 쓴다. */
+'use strict';
+window.SN = window.SN || {};
 
-  const PREFIX = 'snp:v1:';
+(function (SN) {
+  // ── 시드 난수 (mulberry32): 같은 시드 → 같은 조각 모양 (이어 하기 복원용)
+  SN.rng = function (seed) {
+    let a = seed >>> 0;
+    const f = function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    f.range = (lo, hi) => lo + (hi - lo) * f();
+    f.int = (n) => Math.floor(f() * n);
+    f.pick = (arr) => arr[Math.floor(f() * arr.length)];
+    f.shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(f() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+    return f;
+  };
+  SN.newSeed = () => (Math.random() * 0x7fffffff) | 0;
 
-  const util = {
-    /** 시드가 같으면 어느 기기에서나 같은 수열을 내는 32비트 난수 생성기 */
-    mulberry32(seed) {
-      let a = seed >>> 0;
-      return function () {
-        a = (a + 0x6d2b79f5) >>> 0;
-        let t = a;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-    },
-    newSeed() {
-      if (window.crypto && crypto.getRandomValues) {
-        const a = new Uint32Array(1);
-        crypto.getRandomValues(a);
-        return a[0] || 1;
-      }
-      return (Math.random() * 4294967295) >>> 0 || 1;
-    },
-    shuffle(arr, rnd) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(rnd() * (i + 1));
-        const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
-      }
-      return arr;
-    },
+  SN.clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  SN.lerp = (a, b, t) => a + (b - a) * t;
+  SN.easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+  SN.easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  SN.easeOutBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
-    clamp: (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v),
-    lerp: (a, b, t) => a + (b - a) * t,
-    easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
-    easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
-    easeOutBack: (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
-
-    /** 밀리초 → 「3:07」 또는 「1:02:03」 */
-    fmtTime(ms) {
-      const s = Math.max(0, Math.floor(ms / 1000));
-      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
-      const p = (n) => (n < 10 ? '0' : '') + n;
-      return h > 0 ? `${h}:${p(m)}:${p(ss)}` : `${m}:${p(ss)}`;
-    },
-    /** 밀리초 → 「3분 7초」 (읽기 쉬운 말) */
-    fmtTimeWords(ms) {
-      const s = Math.max(0, Math.round(ms / 1000));
-      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
-      const out = [];
-      if (h) out.push(h + '시간');
-      if (m) out.push(m + '분');
-      if (ss || !out.length) out.push(ss + '초');
-      return out.join(' ');
-    },
-
-    /** localStorage (사파리 사생활 보호 모드 등에서 실패해도 게임은 계속) */
-    store: {
-      get(key, def) {
-        try {
-          const v = localStorage.getItem(PREFIX + key);
-          return v == null ? def : JSON.parse(v);
-        } catch (e) { return def; }
-      },
-      set(key, val) {
-        try { localStorage.setItem(PREFIX + key, JSON.stringify(val)); return true; } catch (e) { return false; }
-      },
-      del(key) { try { localStorage.removeItem(PREFIX + key); } catch (e) { /* 무시 */ } },
-      keys() {
-        const out = [];
-        try {
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.indexOf(PREFIX) === 0) out.push(k.slice(PREFIX.length));
-          }
-        } catch (e) { /* 무시 */ }
-        return out;
-      },
-    },
-
-    b64ToBytes(b64) {
-      const bin = atob(b64);
-      const out = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out;
-    },
-    /** MSB 먼저 비트 패킹된 base64 → 0/1 배열 */
-    decodeBits(b64, n) {
-      const bytes = util.b64ToBytes(b64);
-      const out = new Uint8Array(n);
-      for (let i = 0; i < n; i++) out[i] = (bytes[i >> 3] >> (7 - (i & 7))) & 1;
-      return out;
-    },
-
-    makeCanvas(w, h) {
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.ceil(w));
-      c.height = Math.max(1, Math.ceil(h));
-      return c;
-    },
-    /** iOS 사파리는 캔버스 메모리를 늦게 돌려주므로 다 쓴 캔버스는 크기를 0 으로 */
-    freeCanvas(c) {
-      if (c) { c.width = 0; c.height = 0; }
-    },
-
-    /** 작은 DOM 생성 도우미: el('div', {class:'x', onclick:fn}, [자식...]) */
-    el(tag, attrs, children) {
-      const e = document.createElement(tag);
-      if (attrs) {
-        for (const k in attrs) {
-          const v = attrs[k];
-          if (v == null || v === false) continue;
-          if (k === 'class') e.className = v;
-          else if (k === 'text') e.textContent = v;
-          else if (k === 'html') e.innerHTML = v;
-          else if (k.slice(0, 2) === 'on' && typeof v === 'function') e.addEventListener(k.slice(2), v);
-          else e.setAttribute(k, v === true ? '' : v);
-        }
-      }
-      if (children) {
-        for (const c of [].concat(children)) {
-          if (c == null || c === false) continue;
-          e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
-        }
-      }
-      return e;
-    },
-    icon(name, cls) {
-      const ns = 'http://www.w3.org/2000/svg';
-      const s = document.createElementNS(ns, 'svg');
-      s.setAttribute('class', 'ico' + (cls ? ' ' + cls : ''));
-      s.setAttribute('aria-hidden', 'true');
-      const u = document.createElementNS(ns, 'use');
-      u.setAttribute('href', '#i-' + name);
-      s.appendChild(u);
-      return s;
-    },
-    nextFrame() { return new Promise((r) => requestAnimationFrame(() => r())); },
-    sleep(ms) { return new Promise((r) => setTimeout(r, ms)); },
-    prefersReducedMotion() {
-      return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    },
+  // 90° 단위 회전: r ∈ {0,1,2,3} (시계 방향)
+  SN.rot90 = function (x, y, r) {
+    switch (((r % 4) + 4) % 4) {
+      case 1: return [-y, x];
+      case 2: return [-x, -y];
+      case 3: return [y, -x];
+      default: return [x, y];
+    }
   };
 
-  SNP.util = util;
-})();
+  SN.fmtTime = function (sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    const mm = String(m).padStart(h ? 2 : 1, '0'), ss = String(s).padStart(2, '0');
+    return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  };
+
+  // ── 저장소 (localStorage, 실패해도 게임은 계속)
+  const PREFIX = 'sn.';
+  SN.store = {
+    get(key, def) {
+      try { const v = localStorage.getItem(PREFIX + key); return v == null ? def : JSON.parse(v); } catch (e) { return def; }
+    },
+    set(key, val) {
+      try { localStorage.setItem(PREFIX + key, JSON.stringify(val)); return true; } catch (e) { return false; }
+    },
+    del(key) { try { localStorage.removeItem(PREFIX + key); } catch (e) { /* 무시 */ } },
+  };
+
+  SN.el = function (tag, attrs, ...children) {
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      const v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k === 'html') e.innerHTML = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+      else e.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of children.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+    return e;
+  };
+
+  SN.canvas = function (w, h) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(w));
+    c.height = Math.max(1, Math.ceil(h));
+    return c;
+  };
+
+  // 환경 판별
+  SN.env = {
+    touch: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
+    // iPadOS 사파리는 UA 가 Macintosh — 터치 점 수로 판별
+    ios: /iP(hone|od|ad)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1),
+    reducedMotion: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    fullscreen: !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen),
+  };
+
+  // 간단한 이벤트 버스
+  const handlers = {};
+  SN.on = (name, f) => { (handlers[name] = handlers[name] || []).push(f); };
+  SN.emit = (name, ...args) => { (handlers[name] || []).forEach((f) => { try { f(...args); } catch (e) { console.error(e); } }); };
+})(window.SN);
