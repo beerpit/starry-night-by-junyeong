@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1640">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Junyeong 이 팔레트에 그린 「별이 빛나는 밤」으로 만든 직소 퍼즐 게임 — 6단계 난이도, 찬스, 완성 축하.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="별밤 퍼즐">
+  <meta name="format-detection" content="telephone=no">
+  <title>별이 빛나는 밤 by Junyeong</title>
+  <!-- PWA 매니페스트는 웹 주소로 열었을 때만(file:// 에서는 브라우저가 막아 오류만 남김) -->
+  <script data-pwa>if (/^https?:$/.test(location.protocol)) { var l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l); }</script>
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 아이콘 묶음: 모든 OS 에서 똑같이 보이도록 이모지 대신 SVG -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h5v-5h3v5h5V10"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5.5-5 4 3.5 2.5-2 4 3.5"/></symbol>
+      <symbol id="i-ghost" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="12" height="12" rx="2"/><rect x="8.5" y="8.5" width="12" height="12" rx="2" stroke-dasharray="2.5 2.5"/></symbol>
+      <symbol id="i-tidy" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+      <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2.5c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7Z"/><path d="M19 15.5c.25 1.9 1 2.65 2.9 2.9-1.9.25-2.65 1-2.9 2.9-.25-1.9-1-2.65-2.9-2.9 1.9-.25 2.65-1 2.9-2.9Z"/></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5Z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></symbol>
+      <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5Z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></symbol>
+      <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></symbol>
+      <symbol id="i-full-exit" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.8"/><path d="M12 17.2v.1"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8Z"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5v8h14v-8M12 8.5v12M12 8.5C10 4 6.5 4.5 7 7c.3 1.4 2.8 1.5 5 1.5ZM12 8.5c2-4.5 5.5-4 5-1.5-.3 1.4-2.8 1.5-5 1.5Z"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.1"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5Z"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5v4.5h4.5"/></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></symbol>
+      <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5v4.5h-4.5"/><rect x="9" y="9" width="6" height="6" rx="1"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+      <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M4 8h3.5a2 2 0 1 1 4 0H15v3.5a2 2 0 1 1 0 4V20H4v-3.5a2 2 0 1 0 0-4Z"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M10.5 7.5v6M7.5 10.5h6"/></symbol>
+      <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 10.5h6"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- ===================== 시작 화면 ===================== -->
+  <main id="home" class="screen">
+    <div class="sky" aria-hidden="true"></div>
+    <div class="home-inner">
+      <header class="hero">
+        <div class="hero-art"><img id="heroImg" src="assets/painting-thumb.webp" alt="팔레트 모양 나무판에 유화로 그린 별이 빛나는 밤" width="600" height="401"></div>
+        <div class="hero-text">
+          <h1 id="titleText">별이 빛나는 밤 <span class="h1-sub">by Junyeong</span></h1>
+          <p class="credit" id="credit"></p>
+          <p class="lead">직소 퍼즐 — 조각을 끌어다 팔레트 모양 자리에 맞춰 그림을 완성해요.</p>
+        </div>
+      </header>
+
+      <section class="levels-wrap" aria-labelledby="lvTitle">
+        <div class="section-head">
+          <h2 id="lvTitle">단계를 골라요</h2>
+          <div class="home-opts">
+            <label class="switch" title="켜면 조각이 돌아간 채로 섞여요. 조각을 톡 치면 90°씩 돌아가요.">
+              <input type="checkbox" id="optRotate"><span class="track" aria-hidden="true"></span><span class="sw-label">조각 돌리기</span>
+            </label>
+            <button type="button" class="chip" id="homeSound" aria-pressed="true" title="소리 켜기/끄기"></button>
+          </div>
+        </div>
+        <div id="levels" class="levels"></div>
+      </section>
+
+      <footer class="home-foot">
+        <button type="button" class="chip" id="homeHelp"><svg class="ico" aria-hidden="true"><use href="#i-help"/></svg><span>놀이 방법</span></button>
+        <a class="chip" id="guideLink" href="docs/user-guide.html" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>사용 설명서</span></a>
+        <button type="button" class="chip" id="homeSettings"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span>설정</span></button>
+        <span class="ver" id="ver"></span>
+      </footer>
+    </div>
+  </main>
+
+  <!-- ===================== 게임 화면 ===================== -->
+  <main id="play" class="screen" hidden>
+    <header class="toolbar" role="toolbar" aria-label="게임 도구">
+      <div class="tb-scroll">
+        <button type="button" class="tb" id="btnHome" title="처음 화면 (진행은 자동 저장)"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg><span class="lbl">처음</span></button>
+        <div class="tb-info" id="levelInfo" aria-live="off">
+          <span class="lv-name" id="lvName"></span>
+          <span class="time" title="걸린 시간"><svg class="ico sm" aria-hidden="true"><use href="#i-clock"/></svg><span id="timeText">0:00</span></span>
+          <span class="prog" title="맞춘 조각 / 전체 조각"><span id="progText">0/0</span><span class="prog-bar"><span id="progBar"></span></span></span>
+        </div>
+        <span class="tb-gap"></span>
+        <button type="button" class="tb" id="btnPreview" aria-pressed="false" title="완성 그림 미리보기 (P)"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg><span class="lbl">미리보기</span></button>
+        <button type="button" class="tb" id="btnGhost" aria-pressed="false" title="판에 흐린 밑그림 보이기: 끔 → 연하게 → 진하게 (G)"><svg class="ico" aria-hidden="true"><use href="#i-ghost"/></svg><span class="lbl" id="ghostLbl">밑그림</span><span class="dots" id="ghostDots" aria-hidden="true"><i></i><i></i></span></button>
+        <button type="button" class="tb" id="btnTidy" title="흩어진 조각 정리: 테두리 조각 먼저, 비슷한 색끼리 (T)"><svg class="ico" aria-hidden="true"><use href="#i-tidy"/></svg><span class="lbl">정리</span></button>
+        <button type="button" class="tb" id="btnRotate" hidden title="고른 조각 돌리기 (R) — 조각을 톡 쳐도 돌아가요"><svg class="ico" aria-hidden="true"><use href="#i-rotate"/></svg><span class="lbl">돌리기</span></button>
+        <button type="button" class="tb" id="btnFit" title="판 전체 보기 (F) · 확대는 두 손가락/휠"><svg class="ico" aria-hidden="true"><use href="#i-fit"/></svg><span class="lbl">전체</span></button>
+        <button type="button" class="tb chance" id="btnChance" title="찬스: 고른 조각(없으면 알맞은 조각)을 제자리로 보내요 (C)"><svg class="ico" aria-hidden="true"><use href="#i-spark"/></svg><span class="lbl">찬스</span><span class="badge" id="chanceBadge">0</span></button>
+        <button type="button" class="tb" id="btnSound" aria-pressed="true" title="소리 켜기/끄기 (M)"><svg class="ico" aria-hidden="true"><use href="#i-sound"/></svg></button>
+        <button type="button" class="tb" id="btnFull" hidden title="전체 화면"><svg class="ico" aria-hidden="true"><use href="#i-full"/></svg></button>
+        <button type="button" class="tb" id="btnHelp" title="놀이 방법 (?)"><svg class="ico" aria-hidden="true"><use href="#i-help"/></svg></button>
+      </div>
+    </header>
+    <div class="stage" id="stage">
+      <canvas id="board" aria-label="퍼즐 판. 조각을 끌어서 팔레트 모양 자리에 맞추세요."></canvas>
+      <div id="toasts" class="toasts" aria-live="polite"></div>
+      <div class="zoom-ctl" aria-label="확대·축소">
+        <button type="button" class="zc" id="zoomIn" title="확대 (+)" aria-label="확대"><svg class="ico" aria-hidden="true"><use href="#i-zoom-in"/></svg></button>
+        <button type="button" class="zc" id="zoomOut" title="축소 (-)" aria-label="축소"><svg class="ico" aria-hidden="true"><use href="#i-zoom-out"/></svg></button>
+        <button type="button" class="zc only-narrow" id="zoomFit" title="판 전체 보기" aria-label="판 전체 보기"><svg class="ico" aria-hidden="true"><use href="#i-fit"/></svg></button>
+      </div>
+      <!-- 좁은 화면(휴대폰 세로)에서만: 엄지가 닿는 큰 찬스 버튼 -->
+      <button type="button" class="fab-chance only-narrow" id="fabChance" title="찬스: 고른 조각(없으면 알맞은 조각)을 제자리로" aria-label="찬스"><svg class="ico" aria-hidden="true"><use href="#i-spark"/></svg><span class="badge" id="fabBadge">0</span></button>
+      <div id="loading" class="loading" hidden>
+        <div class="load-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>그림을 조각조각 자르는 중…</p>
+          <div class="load-bar"><span id="loadBar"></span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="windows"></div>
+
+  <noscript><p class="noscript">이 게임은 자바스크립트가 필요해요. 브라우저 설정에서 자바스크립트를 켜 주세요.</p></noscript>
+
+  <script src="js/board-data.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/jigsaw.js"></script>
+  <script src="js/pieces.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/windows.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
